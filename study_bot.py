@@ -50,7 +50,7 @@ def get_chatbot_response(question, context):
     url = "https://api.worqhat.com/api/ai/content/v4"
     
     # Add context (previous extracted questions) to the prompt
-    context_text = "\n".join(context) if context else "No previous context available."
+    context_text = context
     
     payload = json.dumps({
         "question": question + context_text,
