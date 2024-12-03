@@ -55,9 +55,9 @@ def get_chatbot_response(question, context):
     payload = json.dumps({
         "question": question + context_text,
         "model": "aicon-v4-large-160824",
-        "randomness": 0.5,
+        "randomness": 0.1,
         "stream_data": False,
-        "training_data": f"You are an expert teacher ",
+        "training_data": f"You are an expert teacher",
         "response_type": "text"
     })
     
