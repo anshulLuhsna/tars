@@ -72,16 +72,17 @@ def get_chatbot_response(question, context):
     else:
         return f"Error: {response.status_code}, {response.text}"
 
-def get_chatbot_response_with_context(question, context, max_chunk_size=5):
+def get_chatbot_response_with_context(message, questions):
     """Send multiple API requests with smaller chunks of context and display each response."""
     responses = []
     
     # Split the context into chunks of size 'max_chunk_size'
-    for i in range(0, len(context), max_chunk_size):
-        chunk = context[i:i + max_chunk_size]
-        response = get_chatbot_response(question, chunk)
+    for index , question in enumerate(questions):
+        print(question)
+        response = get_chatbot_response(message, question)
         responses.append(response)
-        st.write(f"Alex: {response}")  # Display each response immediately
+        st.write(f"ANSWER {index} \n {response}")  # Display each response immediately
+        st.divider()
     
     # Combine all the responses from each chunk
     full_response = "\n".join(responses)
@@ -104,7 +105,6 @@ def main():
             ("Direct Extraction (for selectable text)", "OCR (for scanned documents)"),
         )
         
-        all_questions = []
 
         for file in uploaded_files:
             file_name = file.name
@@ -122,23 +122,59 @@ def main():
                 continue
 
             questions = text.split("\n")  # Split text into lines
-            all_questions.extend(questions)
+            extracted_questions.extend(questions)
 
-        # Filter unique questions
-        extracted_questions = filter_common_questions(all_questions)
+    prompt = """
+    This is the text extracted from a file. Your task is to extract and format only the questions from the text. Follow these rules strictly:
 
-        st.subheader("Extracted Questions")
-        for question in extracted_questions:
+Questions are indicated by "Q<question number>)" (e.g., Q1) What is your name?).
+Subquestions are marked by letters or Roman numerals (e.g., a), b), i), ii), etc.).
+If a subquestion contains multiple parts (e.g., i) Compiler, ii) Interpreter), combine them under the same subquestion heading as a single item. Do not split them into separate questions.
+Write each subquestion on a new line.
+Do not combine multiple main questions into one.
+Do not include any additional text, context, or comments outside of the questions. Do not put new line at the end or after question number. I want one subquestion per line.
+Example Input:
+a) Write short note on [7]
+i) Compiler
+ii) Interpreter
+
+Example Output:
+a) Write a short note on: Compiler and Interpreter
+
+Here is the text:
+"""
+    st.divider()
+    if extracted_questions:
+        if st.button("Frame Questions"):
+            st.write("Framing questions from the uploaded content...")
+          
+            framed_questions = get_chatbot_response(prompt, extracted_questions).split("\n")
+            st.session_state["framed_questions"] = framed_questions  # Store framed questions in session state
+    
+
+    # Display framed questions for confirmation
+    if "framed_questions" in st.session_state:
+        st.subheader("Framed Questions (Confirm or Edit)")
+        confirmed_questions = []
+        for idx, question in enumerate(st.session_state["framed_questions"]):
+            user_input = st.text_input(f"Question {idx + 1}:", value=question)
+            confirmed_questions.append(user_input)
+        st.divider()
+        st.session_state["confirmed_questions"] = confirmed_questions
+
+    st.subheader("Confirmed Questions")
+    if "confimed_questions" in st.session_state:
+        for question in st.session_state["confirmed_questions"]:
             st.write(f"- {question}")
 
     # Chatbot Section
-    st.subheader("Chat with Alex")
+    st.subheader("Chat with TARS")
     user_question = st.text_input("Ask a question to the chatbot:")
 
     if st.button("Get Response"):
         if user_question:
             # Get the response from the chatbot with chunked context
-            full_response = get_chatbot_response_with_context(user_question, extracted_questions)
+            full_response = get_chatbot_response_with_context(user_question, confirmed_questions)
             st.write(f"Full Response:\n{full_response}")
         else:
             st.warning("Please enter a question.")
