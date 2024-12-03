@@ -89,8 +89,8 @@ def get_chatbot_response_with_context(message, questions):
     return full_response
 
 def main():
-    st.title("Study Bot - Question Processor with Chatbot")
-    st.subheader("Upload question papers, extract unique questions, and chat with an AI!")
+    st.title("TARS bot")
+  
 
     # File Upload Section
     uploaded_files = st.file_uploader(
@@ -162,10 +162,7 @@ Here is the text:
         st.divider()
         st.session_state["confirmed_questions"] = confirmed_questions
 
-    st.subheader("Confirmed Questions")
-    if "confimed_questions" in st.session_state:
-        for question in st.session_state["confirmed_questions"]:
-            st.write(f"- {question}")
+ 
 
     # Chatbot Section
     st.subheader("Chat with TARS")
