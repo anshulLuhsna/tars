@@ -7,6 +7,22 @@ import docx
 import tempfile
 import requests
 import json
+from langchain_chroma import Chroma
+from langchain_openai import OpenAIEmbeddings
+from langchain_chroma import Chroma
+from uuid import uuid4
+from langchain_core.documents import Document
+from dotenv import load_dotenv
+
+load_dotenv()
+
+embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
+
+vector_store = Chroma(
+    collection_name="example_collection",
+    embedding_function=embeddings,
+    persist_directory="./local_vector_store",  # Where to save data locally, remove if not necessary
+)
 
 def extract_text_with_ocr(file):
     """Use OCR to extract text from a scanned PDF."""
@@ -45,15 +61,15 @@ def filter_common_questions(text_list):
             unique_questions.append(question.strip())
     return unique_questions
 
-def get_chatbot_response(question, context):
+def get_chatbot_response_questions(user_message, question):
     """Get a response from the chatbot API with context."""
     url = "https://api.worqhat.com/api/ai/content/v4"
     
     # Add context (previous extracted questions) to the prompt
-    context_text = str(context)
+    question_text = str(question)
     
     payload = json.dumps({
-        "question": question + context_text,
+        "question": user_message + question_text,
         "model": "aicon-v4-large-160824",
         "randomness": 0.1,
         "stream_data": False,
@@ -67,26 +83,77 @@ def get_chatbot_response(question, context):
     }
     
     response = requests.post(url, headers=headers, data=payload)
+
+    
     if response.status_code == 200:
+        
         return response.json().get("content", "No response received.")
     else:
         return f"Error: {response.status_code}, {response.text}"
+
+def get_chatbot_response_answers(user_message, question):
+    """Get a response from the chatbot API with context."""
+    url = "https://api.worqhat.com/api/ai/content/v4"
+    
+    # Add context (previous extracted questions) to the prompt
+    question_text = str(question)
+    
+    payload = json.dumps({
+        "question": user_message + question_text,
+        "model": "aicon-v4-large-160824",
+        "randomness": 0.1,
+        "stream_data": False,
+        "training_data": f"You are an expert teacher",
+        "response_type": "text"
+    })
+    
+    headers = {
+        'Content-Type': 'application/json',
+        "Authorization": "Bearer sk-128fd96fdf0d4039bdaef731e091de03"  # Replace with your token
+    }
+    
+    response = requests.post(url, headers=headers, data=payload)
+
+    
+    if response.status_code == 200:
+        print("QUESTION", "\n", question_text)
+        answer = response.json().get("content")
+        print("ANSWER", "\n", answer)
+
+        document = Document(
+            page_content = question_text,
+            metadata={"answer": answer},
+            id= uuid4(),
+        )
+        vector_store.add_documents([document])
+        print("Document added:", document.metadata)
+        return response.json().get("content", "No response received.")
+    else:
+        return f"Error: {response.status_code}, {response.text}"
+
+
 
 def get_chatbot_response_with_context(message, questions):
     """Send multiple API requests with smaller chunks of context and display each response."""
     responses = []
     
+
+
     # Split the context into chunks of size 'max_chunk_size'
     for index , question in enumerate(questions):
         print(question)
-        response = get_chatbot_response(message, question)
+        response = get_chatbot_response_answers(message, question)
         responses.append(response)
         st.write(f"ANSWER {index} \n {response}")  # Display each response immediately
+
         st.divider()
     
     # Combine all the responses from each chunk
     full_response = "\n".join(responses)
     return full_response
+
+# def storeInChroma()
+
 
 def main():
     st.title("TARS bot")
@@ -148,9 +215,9 @@ Here is the text:
         if st.button("Frame Questions"):
             st.write("Framing questions from the uploaded content...")
           
-            framed_questions = get_chatbot_response(prompt, extracted_questions).split("\n")
+            framed_questions = get_chatbot_response_questions(prompt, extracted_questions).split("\n")
             st.session_state["framed_questions"] = framed_questions  # Store framed questions in session state
-    
+
 
     # Display framed questions for confirmation
     if "framed_questions" in st.session_state:
@@ -170,11 +237,39 @@ Here is the text:
 
     if st.button("Get Response"):
         if user_question:
-            # Get the response from the chatbot with chunked context
+            st.write(confirmed_questions)
+
+            # Collect questions to remove in a separate list
+            questions_to_remove = []
+
+            for index, question in enumerate(confirmed_questions):
+                results = vector_store.similarity_search_with_score(
+                    question,
+                    k=1,
+                )
+
+                st.write("Checking question: ", question)
+                found = False  # Flag to indicate if the question is found
+
+                for res, score in results:
+                    similarity_score = score
+                    print(f"* [SIM={score:3f}] {res.page_content}")
+                    if similarity_score < 0.001:
+                        st.write(res.metadata["answer"])
+                        questions_to_remove.append(question)  # Add to removal list
+                       
+                        found = True
+                        break
+
+                if not found:
+                    st.write("NOT FOUND: ", question)
+
+            # Remove the collected questions after iteration
+            for question in questions_to_remove:
+                confirmed_questions.remove(question)
+
+            st.write(f"Remaining questions: {confirmed_questions}")
             full_response = get_chatbot_response_with_context(user_question, confirmed_questions)
-            st.write(f"Full Response:\n{full_response}")
-        else:
-            st.warning("Please enter a question.")
 
 if __name__ == "__main__":
     main()
