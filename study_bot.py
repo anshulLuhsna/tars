@@ -252,7 +252,7 @@ Here is the text:
 
     if st.button("Get all answers"):
         if user_question:
-            st.write(confirmed_questions)
+           
 
             # Collect questions to remove in a separate list
             questions_to_remove = []
@@ -270,7 +270,9 @@ Here is the text:
                     similarity_score = score
                     print(f"* [SIM={score:3f}] {res.page_content}")
                     if similarity_score < 0.001:
+                        st.divider()
                         st.write(res.metadata["answer"])
+                        st.divider()
                         questions_to_remove.append(question)  # Add to removal list
                        
                         found = True
