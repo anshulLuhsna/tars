@@ -167,15 +167,29 @@ def main():
     extracted_questions = []
 
     if uploaded_files:
+        # Define available options
+        options = ["Direct Extraction (for selectable text)", "OCR (for scanned documents)"]
+
+        # Simulate a condition to disable "OCR"
+        disable_ocr = True
+
+        if disable_ocr:
+            # Indicate the option is disabled
+            options = ["Direct Extraction (for selectable text)"]  # Remove OCR or mark it disabled
+            st.warning("OCR extraction is coming soon")
+
+        # Display radio button
         extraction_mode = st.radio(
             "Choose Extraction Method:",
-            ("Direct Extraction (for selectable text)", "OCR (for scanned documents)"),
+            options
         )
+
+        
         
 
         for file in uploaded_files:
             file_name = file.name
-            st.write(f"Processing: {file_name}")
+          
 
             if file_name.endswith(".pdf"):
                 if extraction_mode == "Direct Extraction (for selectable text)":
@@ -212,6 +226,7 @@ Here is the text:
 """
     st.divider()
     if extracted_questions:
+        st.header("Get the AI to frame the questions properly.")
         if st.button("Frame Questions"):
             st.write("Framing questions from the uploaded content...")
           
@@ -232,10 +247,10 @@ Here is the text:
  
 
     # Chatbot Section
-    st.subheader("Chat with TARS")
-    user_question = st.text_input("Ask a question to the chatbot:")
+    st.subheader("Answers (They will appear sequentially as the bot responds.)")
+    user_question = st.text_input("Enter context about the subject")
 
-    if st.button("Get Response"):
+    if st.button("Get all answers"):
         if user_question:
             st.write(confirmed_questions)
 
