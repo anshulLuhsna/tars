@@ -1,0 +1,30 @@
+version: '3.8'
+services:
+  streamlit:
+    build: .
+    container_name: streamlit_app
+    ports:
+      - "8501:8501"
+    volumes:
+      - .:/app
+    restart: unless-stopped
+
+  vscode:
+    image: codercom/code-server:4.95.3
+    container_name: vscode_server
+    ports:
+      - "8080:8080"
+    environment:
+      - PASSWORD=your_secure_password
+    volumes:
+      - ./vscode/extensions.txt:/home/coder/extensions.txt
+      - ./:/home/coder/project
+    restart: unless-stopped
+
+  langgraph:
+    build:
+      context: ./lang_server
+  
+    ports:
+      - "2024:2024"
+  

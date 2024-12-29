@@ -29,7 +29,6 @@ def extract_text_with_ocr(file):
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
         temp_file.write(file.read())
         temp_path = temp_file.name
-
     images = convert_from_path(temp_path)
     text = ""
     for img in images:
@@ -70,7 +69,7 @@ def get_chatbot_response_questions(user_message, question):
     
     payload = json.dumps({
         "question": user_message + question_text,
-        "model": "aicon-v4-large-160824",
+        "model": "aicon-v4-nano-160824",
         "randomness": 0.1,
         "stream_data": False,
         "training_data": f"You are an expert teacher",
@@ -100,7 +99,7 @@ def get_chatbot_response_answers(user_message, question):
     
     payload = json.dumps({
         "question": user_message + question_text,
-        "model": "aicon-v4-large-160824",
+        "model": "aicon-v4-nano-160824",
         "randomness": 0.1,
         "stream_data": False,
         "training_data": f"You are an expert teacher",

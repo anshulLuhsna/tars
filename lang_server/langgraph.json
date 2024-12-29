@@ -1,0 +1,8 @@
+{
+    "dependencies": ["."],
+    "graphs": {
+      "react_agent": "react_agent:react_agent"
+    },
+    "env": ".env"
+  }
+  
