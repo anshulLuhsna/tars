@@ -1,0 +1,8 @@
+{
+    "dependencies": ["."],
+    "graphs": {
+      "agent": "./tars.py:graph"
+    },
+    "env": ".env"
+  }
+  

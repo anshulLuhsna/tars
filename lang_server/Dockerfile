@@ -1,30 +1,29 @@
-# Use Python as the base image
-FROM python:3.11-slim
+# Base image with Python
+FROM python:3.9-slim
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-# Set the working directory
+# Set working directory inside the container
 WORKDIR /app
 
-# Install system dependencies
+# Copy application files to the container
+COPY . /app
+
+# Install system dependencies (optional, if needed by LangGraph or your app)
 RUN apt-get update && apt-get install -y \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Install LangGraph CLI
-RUN pip install --upgrade "langgraph-cli[inmem]"
 
-# Copy app files to container
-COPY . /app
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install -r requirements.txt && \
+    pip install --no-cache-dir "langgraph-cli[inmem]" 
 
-# Install app dependencies in editable mode
-RUN pip install -e .
-RUN pip install langchain-openai langchain langgraph
 
-# Expose the server port
-EXPOSE 8000
+# Set environment variables (ensure you have a .env file)
+ENV LANGGRAPH_ENV=development
+COPY .env /app/.env
 
-# Command to run the LangGraph server in development mode
-CMD ["langgraph", "dev"]
+# Expose the port the app runs on
+EXPOSE 2024
+# Command to run the application
+CMD ["sh", "-c", "pip install -U 'langgraph-cli[inmem]' && langgraph dev --host 0.0.0.0"]

@@ -1,7 +1,7 @@
 {
     "dependencies": ["."],
     "graphs": {
-      "react_agent": "react_agent:react_agent"
+      "agent": "../tars.py:graph"
     },
     "env": ".env"
   }
