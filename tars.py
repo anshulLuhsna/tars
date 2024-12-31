@@ -9,9 +9,12 @@ from langgraph.graph.message import add_messages
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langgraph.prebuilt import ToolNode, tools_condition
 from langchain_core.prompts import PromptTemplate
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
+from langchain_community.tools import YouTubeSearchTool
 import requests
 import json
+
+
 
 class CustomLLM:
     def __init__(self, model_name: str, api_key: str):
@@ -56,9 +59,11 @@ if "conversation_history" not in st.session_state:
 load_dotenv()
 
 search_tool = TavilySearchResults(max_results=1)
+yt_tool = YouTubeSearchTool()
+tools = [search_tool, yt_tool]
 worqhat_llm = CustomLLM(model_name="aicon-v4-nano-160824", api_key="sk-128fd96fdf0d4039bdaef731e091de03")
 llm_gpt = ChatOpenAI(model="gpt-4o-mini", temperature=0)
-llm_gpt_with_tools = llm_gpt.bind_tools([search_tool])
+llm_gpt_with_tools = llm_gpt.bind_tools(tools)
 
 class State(TypedDict):
     # Messages have the type "list". The `add_messages` function
@@ -74,6 +79,8 @@ prompt_template = SystemMessage(content=
     "You are only a tool calling agent. Give a tool call only and only if the user's answer will be better by searching the internet. Do not use tools for normal interactions. If not using a tool, simple reply with 'Okay'."
 )
 
+
+
 def chatbot(state: State):
     # Extract the latest user message
     user_message = state["messages"][-1].content if state["messages"] else ""
@@ -81,14 +88,19 @@ def chatbot(state: State):
 
     # Create a HumanMessage with the formatted prompt
     prompt_message = prompt_template
-
+    context_message = SystemMessage(content="The following is the context that you might need to answer the question. It is the response of some tool calls. Relay the information properly to the user. If there are yt links, just repeat the links in your response.")
     # Invoke the language model with the prompt
-    st.write([prompt_message, HumanMessage(content=user_message)])
+   
     ai_response = llm_gpt_with_tools.invoke([prompt_message, HumanMessage(content=user_message)])
     if "tool_calls" in ai_response.additional_kwargs:
-        state["messages"].append(ai_response)
+
+        for toolCall in ai_response.additional_kwargs["tool_calls"]:
+      
+            state["messages"].append(context_message)
+            state["messages"].append(ai_response)
+            return {"messages": state["messages"]}
         return {"messages": state["messages"]}
-    return {"messages": state["messages"]}
+
     # st.write(ai_response)
     # Replace the user's message with the AI's response in the conversation history
     # if state["messages"]:
@@ -99,11 +111,19 @@ def chatbot(state: State):
     # return {"messages": state["messages"]}
 
 def worqhat(state: State):
-    return {"messages": [worqhat_llm.invoke(state["messages"])]}
+    if(type(state["messages"][-1] == ToolMessage)):
+        toolContent = state["messages"][-1].content
+
+        response = AIMessage(content=str(toolContent) + "\n" + worqhat_llm.invoke(state["messages"]))
+        return {"messages": [response]}
+
+    response = AIMessage(content=worqhat_llm.invoke(state["messages"]))
+
+    return {"messages": [response]}
 
 
 graph_builder.add_node("chatbot", chatbot)
-graph_builder.add_node("tools", ToolNode([search_tool]))
+graph_builder.add_node("tools", ToolNode(tools))
 graph_builder.add_node("worqhat", worqhat)
 
 
@@ -113,8 +133,6 @@ graph_builder.add_conditional_edges(
     tools_condition,
     {"tools":"tools", END: "worqhat"}
 )
-
-
 graph_builder.add_edge("tools", "chatbot")
 graph_builder.add_edge("worqhat", END)
 
